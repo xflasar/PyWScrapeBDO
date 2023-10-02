@@ -1,1 +1,1 @@
-from .data_processer import CategoryManager
+from .data_processer import save_into_file

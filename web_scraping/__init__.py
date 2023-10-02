@@ -1,1 +1,1 @@
-from .scraper import scrape_links_from_initial_page, test_scrape_links_from_initial_page
+from .scraper import scrape_links_from_initial_page, scrape_links_from_initial_page

@@ -1,5 +1,5 @@
-from web_scraping import scrape_links_from_initial_page, test_scrape_links_from_initial_page
-from data_processing import CategoryManager
+from web_scraping import scrape_links_from_initial_page, scrape_links_from_initial_page
+from data_processing import save_into_file
 # Entry point for the script
 if __name__ == "__main__":
     links, mainCategories, subCategories, subCategoriesCounts = scrape_links_from_initial_page()
@@ -9,5 +9,5 @@ if __name__ == "__main__":
         print('/us/items/version link found!')
         linksVerified = False
     if linksVerified:
-      cateManager = CategoryManager()
-      test_scrape_links_from_initial_page(links, mainCategories, subCategories, subCategoriesCounts, cateManager)
+      test = scrape_links_from_initial_page(links, mainCategories, subCategories, subCategoriesCounts)
+      save_into_file('test.json', test[0], test[1], test[2])

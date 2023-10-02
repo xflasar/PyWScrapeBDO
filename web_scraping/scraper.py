@@ -88,6 +88,20 @@ def scrape_links_from_initial_page():
         return []
 
 def test_scrape_links_from_initial_page(links, mainCategories, subCategories, subCategoriesCounts, cateManager):
+  # Bugs:
+  """
+    Problem with data being moved 1 subcategory backwards or basically sometimes subcategory name doesnt translate onto its items
+    "furniture": {
+        "cupboard": {
+            "53802": "Large Wagon Lamp", -> This is wrong should be in different subcategory
+            "53801": "Wagon Lamp"
+        },
+        "chair": {},
+        "chandelier": {},
+        "carpet": {},
+        "walls": {}
+    }
+  """
   try:
     counterOk = 0
     counterFail = 0
@@ -103,6 +117,7 @@ def test_scrape_links_from_initial_page(links, mainCategories, subCategories, su
     link_counter = 0
     link_counter_total = 0
     mainCategoriesD = []
+    mainCategoriesD.append({ "mainCategoryName": mainCategories[mainCategoriesCounter]  , "subCategoriesData":[]})
 
     for link in links:
       link_counter += 1
@@ -119,17 +134,18 @@ def test_scrape_links_from_initial_page(links, mainCategories, subCategories, su
       if mainCategoriesCounter != len(mainCategories):
         if subCategoriesCounts[mainCategoriesCounter] == 0:
           mainCategoriesCounter += 1
+          mainCategoriesD.append({ "mainCategoryName": mainCategories[mainCategoriesCounter]  , "subCategoriesData":[]})
           link_counter = 0
         else:
-          if link_counter % subCategoriesCounts[mainCategoriesCounter] == 0:
+          if link_counter % subCategoriesCounts[mainCategoriesCounter] == 0 and not mainCategoriesCounter + 1 >= len(mainCategories):
             mainCategoriesCounter += 1
+            mainCategoriesD.append({ "mainCategoryName": mainCategories[mainCategoriesCounter]  , "subCategoriesData":[]})
             link_counter = 0
    
       driver.get(full_url)
 
       subCategoriesD = []
 
-      
       try:
         data_misc = driver.find_element(By.CSS_SELECTOR, "[id='WeaponTable_misc_0'], [id='EquipmentTable_misc_0'], [id='MainItemTable_misc_0'], [id='ConsumablesTable_misc_0']")
         if data_misc:
@@ -150,16 +166,20 @@ def test_scrape_links_from_initial_page(links, mainCategories, subCategories, su
           
           try:
             item_id = soup.find_all('td', attrs={'class': 'dt-id'})
-            item_title = soup.find_all('td', attrs={'class': 'dt-title dt-title-search'})
+            item_title = soup.find_all('td', class_=re.compile(r'\b(dt-title|dt-title-search)\b'))
           except NoSuchElementException:
             print("No item ID or item title found.")
             break
 
-          for item in item_id:
-            subCategoriesD.append(item.text)
-            print(f"Item ID: {item.text}")
-          for item in item_title:
-            print(f"Item Title: {item.text}")
+          for itemId,itemTitle in zip(item_id,item_title):
+            try:
+              item = {
+                "id": itemId.text,
+               "name": itemTitle.next_element.next_element.contents[1]
+              }
+              subCategoriesD.append(item)
+            except IndexError:
+              print("Index out of range. HERE!1")
           next_page_button = driver.find_element(By.CLASS_NAME, "next")
           if next_page_button and not next_page_button.get_attribute('class').__contains__('disabled'):
             next_page_button.click()
@@ -171,8 +191,13 @@ def test_scrape_links_from_initial_page(links, mainCategories, subCategories, su
           counterFail += 1
           failLinks.append(full_url)
           break
-      mainCategoriesD.append(subCategoriesD)
-      
+      print('link_counter: ', link_counter - 1)
+      print('link_counter: ', mainCategoriesCounter)
+      print('link_counter: ', mainCategoriesD[mainCategoriesCounter])
+      try:
+        mainCategoriesD[mainCategoriesCounter]["subCategoriesData"].append({"subcategoryName": subCategories[link_counter_total - 1], "DropItems": subCategoriesD})
+      except IndexError:
+        print("Index out of range. HERE!")
     
     driver.quit()
 
@@ -182,6 +207,7 @@ def test_scrape_links_from_initial_page(links, mainCategories, subCategories, su
     print("Links not retrieved: ", counterFail, failLinks)
     print("Total links: ", link_counter_total)
     print("Time elapsed: ", endTime)
+    return mainCategoriesD, mainCategories, subCategories
   except Exception as e:
     print("An error occurred while retrieving the initial page: ", e)
     return []
