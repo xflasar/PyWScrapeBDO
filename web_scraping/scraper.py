@@ -180,6 +180,7 @@ def test_scrape_links_from_initial_page(links, mainCategories, subCategories, su
               subCategoriesD.append(item)
             except IndexError:
               print("Index out of range. HERE!1")
+
           next_page_button = driver.find_element(By.CLASS_NAME, "next")
           if next_page_button and not next_page_button.get_attribute('class').__contains__('disabled'):
             next_page_button.click()
@@ -211,3 +212,96 @@ def test_scrape_links_from_initial_page(links, mainCategories, subCategories, su
   except Exception as e:
     print("An error occurred while retrieving the initial page: ", e)
     return []
+
+def scrape_links_from_id_list(data):
+  data = []
+  seen_ids = set(item[id] for item in data)
+  try:
+    links = []
+    for item in data:
+      if item["id"] in seen_ids:
+        continue
+
+      link = f'/us/item/{item["id"]}'
+      links.append(link)
+    
+    if len(links) > 0:
+      link_counter = 0
+
+      for link in links:
+        link_counter += 1
+        print(f"Scraping data from page {link_counter} of {len(links)}")
+        full_url = 'https://bdocodex.com' + link
+        response = requests.get(full_url)
+
+        if response.status_code == 200:
+          soup = BeautifulSoup(response.text, 'html.parser')
+
+          td_elements = soup.find_all('td')
+
+          for td in td_elements:
+            text = td.get_text(strip=True)
+
+            if 'Sell price:' in text:
+                price = text.split('Sell price:')[1].split('Repair')[0].strip()
+
+                if price == '-':
+                    price = '0'
+
+                print("Id: ", link.split('/')[3], "basePrice: ", price)
+                data.append({"id": link.split('/')[3], "name": item["name"], "basePrice": price})
+                break
+  except Exception as e:
+    print("An error occurred while retrieving the initial page: ", e)
+    return []
+  return data
+
+def scrape_links_from_json_list(data):
+  dataToStore = []
+  
+  driver = webdriver.Chrome()
+  wait = WebDriverWait(driver, 5)
+
+  driver.get('https://bdocodex.com')
+  for dat in data:
+    if "&#39;" in dat:
+      dat = dat.replace("&#39;", "'")
+    try:
+      searchField = driver.find_element(By.ID, "searchfield")
+
+      if searchField:
+        searchField.send_keys(dat)
+        searchField.submit()
+
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "dt-title")))
+
+        dt_items = driver.find_elements(By.CLASS_NAME, "dt-title")
+        if dt_items:
+          for dt_item in dt_items:
+            try:
+              a_item = dt_item.find_element(By.TAG_NAME, "a")
+              if a_item.text == dat:
+                a_item.click()
+                break
+              else:
+                continue
+            except NoSuchElementException:
+              continue
+            
+
+        wait.until(EC.presence_of_element_located((By.CLASS_NAME, "card-header")))
+
+        card_header = driver.find_element(By.CLASS_NAME, "card-header")
+        item_id = card_header.text.split("ID:")[1].split("\n")[0].strip()
+
+        item_name = driver.find_element(By.ID, "item_name")
+
+        smallerText = driver.find_element(By.CLASS_NAME, "smallertext")
+        soup = BeautifulSoup(smallerText.get_attribute('innerHTML'), 'html.parser')
+        sell_price = soup.text.split("Sell price: ")[1].split("\n")[0].split("Repair")[0].strip()
+        if sell_price == '-':
+          sell_price = '0'
+        print(f"Item name: {item_name.text}, Item id: {item_id}, Sell price: {sell_price}")
+        dataToStore.append({"id": item_id, "name": item_name.text, "basePrice": sell_price})
+    except Exception as e:
+      print("An error occurred while retrieving the initial page: ", e)

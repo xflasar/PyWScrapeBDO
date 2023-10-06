@@ -33,3 +33,15 @@ def save_into_file(filename, data, mainCategories, subCategories):
   
   with open(filename, "w") as json_file:
         json.dump(structured_data, json_file, indent=4)
+
+def save_into_file_Ids(data):
+  with open('ids.json', 'w') as f:
+    json.dump(data, f)
+
+def get_from_file(filename):
+  dataIds = []
+  with open(filename, 'r') as f:
+    data = json.load(f)
+    for dat  in data:
+      dataIds.append(dat["name"])
+  return dataIds
